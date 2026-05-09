@@ -798,13 +798,86 @@ const ZodiacStep = ({ birthYear, setBirthYear, onDone }) => {
 const Result = ({ name, result, zodiac, revealed, onRestart }) => {
   const [flipped, setFlipped] = useState(false);
   const [cardNumber] = useState(String(Math.floor(Math.random() * 9999)).padStart(4, '0'));
+  const [toast, setToast] = useState('');
+  const cardRef = React.useRef(null);
   const pinyinParts = result.pinyin.split(' ');
 
-  // Rarity computation
   const archetypePercent = result.archetype.percent;
-  const rarityScore = zodiac 
+  const rarityScore = zodiac
     ? (archetypePercent * zodiac.rarity / 100).toFixed(2)
     : (archetypePercent * 0.6).toFixed(2);
+
+  // Dynamically load html2canvas from CDN (no npm install needed)
+  const loadHtml2Canvas = () => {
+    return new Promise((resolve, reject) => {
+      if (window.html2canvas) return resolve(window.html2canvas);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      script.onload = () => resolve(window.html2canvas);
+      script.onerror = () => reject(new Error('Failed to load html2canvas'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
+
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    try {
+      if (flipped) {
+        setFlipped(false);
+        await new Promise(r => setTimeout(r, 950)); // wait for flip animation
+      }
+      showToast('Preparing your card…');
+      const html2canvas = await loadHtml2Canvas();
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#f5f1e8',
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const link = document.createElement('a');
+      link.download = `${result.chinese}-${cardNumber}.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Card downloaded ✓');
+    } catch (err) {
+      console.error(err);
+      showToast('Download failed, please try again');
+    }
+  };
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    const shareText = `I got the name ${result.chinese} (${result.pinyin}) — "${result.archetype.en}". What's yours?`;
+    const shareUrl = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${result.chinese} · 漢 · name`,
+          text: shareText,
+          url: shareUrl
+        });
+      } catch (err) {
+        // User cancelled share — do nothing
+      }
+    } else if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        showToast('Link copied to clipboard ✓');
+      } catch {
+        showToast('Unable to copy — please copy the URL manually');
+      }
+    } else {
+      showToast('Sharing not supported on this device');
+    }
+  };
 
   return (
     <div className="min-h-screen px-6 py-12">
@@ -819,22 +892,19 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
 
         {/* FLIP CARD CONTAINER */}
         <div style={{ perspective: '2000px', minHeight: '760px' }} className="mb-4 fade-up">
-          <div 
+          <div
             className={`flip-card-inner cursor-pointer ${flipped ? 'flipped' : ''}`}
             style={{ minHeight: '760px' }}
             onClick={() => setFlipped(!flipped)}
           >
             {/* ===== FRONT ===== */}
             <div className="flip-face">
-              <div className="rounded-3xl p-8 md:p-12 shadow-lg relative" style={{ backgroundColor: '#f5f1e8', border: '1px solid rgba(0,0,0,0.04)' }}>
-                
-                {/* Header */}
+              <div ref={cardRef} className="rounded-3xl p-8 md:p-12 shadow-lg relative" style={{ backgroundColor: '#f5f1e8', border: '1px solid rgba(0,0,0,0.04)' }}>
                 <div className="flex justify-between items-center mb-8 text-xs tracking-widest uppercase text-stone-500">
                   <span>漢 · name</span>
                   <span>No. {cardNumber}</span>
                 </div>
 
-                {/* Zodiac symbol — minimalist circle badge, top right */}
                 {zodiac && (
                   <div className="absolute top-6 right-6 flex flex-col items-center zodiac-in">
                     <div className="w-14 h-14 rounded-full flex items-center justify-center border border-stone-900 bg-white bg-opacity-30">
@@ -844,21 +914,18 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
                   </div>
                 )}
 
-                {/* Character */}
                 <div className="flex justify-center items-end h-36 mb-4">
                   <Character type={result.archetype.id} />
                 </div>
 
-                {/* Chinese Name */}
                 <div className="text-center mb-3">
-                  <div 
+                  <div
                     className={`cn-font text-7xl md:text-8xl font-light text-stone-900 ${revealed ? 'reveal-name' : 'opacity-0'}`}
                     style={{ letterSpacing: '6px', paddingLeft: '6px' }}
                   >
                     {result.chinese}
                   </div>
                 </div>
-
                 <div className="text-center text-sm italic text-stone-600 tracking-widest mb-6">
                   {result.pinyin}
                 </div>
@@ -867,13 +934,11 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
                   <div className="h-px bg-stone-400 w-16 opacity-40"></div>
                 </div>
 
-                {/* Archetype */}
                 <div className="text-center mb-6">
                   <div className="text-2xl font-medium text-stone-900 mb-1">{result.archetype.en}</div>
                   <div className="cn-font text-xs text-stone-500 tracking-widest">{result.archetype.zh.split('').join(' ')}</div>
                 </div>
 
-                {/* Elements */}
                 <div className="flex justify-center gap-2 mb-6">
                   {result.archetype.elements.map(el => (
                     <span key={el} className="text-xs tracking-widest uppercase px-3 py-1 border border-stone-900 rounded-full text-stone-900">
@@ -882,13 +947,11 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
                   ))}
                 </div>
 
-                {/* Tagline */}
                 <div className="text-center mb-8">
                   <p className="text-lg italic text-stone-800 mb-2">"{result.archetype.tagline}"</p>
                   <p className="cn-font text-xs text-stone-500 tracking-widest">{result.archetype.taglineZh}</p>
                 </div>
 
-                {/* RARITY STATS — the social proof moment */}
                 <div className="count-up border-t border-b border-stone-300 py-5 mb-8 grid grid-cols-2 gap-4">
                   <div className="text-center border-r border-stone-300">
                     <div className="text-3xl font-light text-stone-900">{archetypePercent}<span className="text-lg">%</span></div>
@@ -900,7 +963,6 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
                   </div>
                 </div>
 
-                {/* Flip hint */}
                 <div className="text-center hint-pulse">
                   <div className="text-xs tracking-widest uppercase text-stone-600 mb-1">↻ tap card to read the story</div>
                   <div className="cn-font text-xs text-stone-400 tracking-widest">點擊查看姓名故事</div>
@@ -911,7 +973,6 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
             {/* ===== BACK ===== */}
             <div className="flip-face flip-back">
               <div className="rounded-3xl p-8 md:p-12 shadow-lg bg-stone-900 text-stone-100" style={{ minHeight: '760px' }}>
-                
                 <div className="flex justify-between items-center mb-8 text-xs tracking-widest uppercase text-stone-400">
                   <span>The Story of {result.chinese}</span>
                   <span>No. {cardNumber}</span>
@@ -983,10 +1044,10 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center fade-up mt-8">
-          <button className="bg-stone-900 text-stone-100 px-8 py-4 rounded-full text-sm tracking-widest uppercase hover:bg-stone-800 transition-colors">
+          <button onClick={handleDownload} className="bg-stone-900 text-stone-100 px-8 py-4 rounded-full text-sm tracking-widest uppercase hover:bg-stone-800 transition-colors">
             ↓ Download Card
           </button>
-          <button className="border border-stone-900 text-stone-900 px-8 py-4 rounded-full text-sm tracking-widest uppercase hover:bg-stone-900 hover:text-stone-100 transition-colors">
+          <button onClick={handleShare} className="border border-stone-900 text-stone-900 px-8 py-4 rounded-full text-sm tracking-widest uppercase hover:bg-stone-900 hover:text-stone-100 transition-colors">
             ↗ Share
           </button>
           <button onClick={onRestart} className="text-stone-700 px-8 py-4 text-sm tracking-widest uppercase hover:text-stone-900 transition-colors">
@@ -997,6 +1058,15 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
         <div className="text-center mt-12 text-xs tracking-widest uppercase text-stone-500">
           © 2026 漢 · name · crafted with 禮
         </div>
+
+        {/* Toast */}
+        {toast && (
+          <div
+            className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-stone-900 text-stone-100 px-6 py-3 rounded-full text-xs tracking-widest uppercase shadow-lg fade-up z-50"
+          >
+            {toast}
+          </div>
+        )}
       </div>
     </div>
   );
