@@ -891,14 +891,14 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
         </div>
 
         {/* FLIP CARD CONTAINER */}
-        <div style={{ perspective: '2000px', minHeight: '760px' }} className="mb-4 fade-up">
+        <div style={{ perspective: '2000px', minHeight: '960px' }} className="mb-4 fade-up">
           <div
             className={`flip-card-inner cursor-pointer ${flipped ? 'flipped' : ''}`}
-            style={{ minHeight: '760px' }}
+            style={{ minHeight: '960px' }}
             onClick={() => setFlipped(!flipped)}
           >
             {/* ===== FRONT ===== */}
-            <div className="flip-face">
+            <div className="flip-face"style={{ pointerEvents: flipped ? 'none' : 'auto' }}>
               <div ref={cardRef} className="rounded-3xl p-8 md:p-12 shadow-lg relative" style={{ backgroundColor: '#f5f1e8', border: '1px solid rgba(0,0,0,0.04)' }}>
                 <div className="flex justify-between items-center mb-8 text-xs tracking-widest uppercase text-stone-500">
                   <span>漢 · name</span>
@@ -971,8 +971,8 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
             </div>
 
             {/* ===== BACK ===== */}
-            <div className="flip-face flip-back">
-              <div className="rounded-3xl p-8 md:p-12 shadow-lg bg-stone-900 text-stone-100" style={{ minHeight: '760px' }}>
+            <div className="flip-face flip-back"style={{ pointerEvents: flipped ? 'auto' : 'none' }}>
+              <div className="rounded-3xl p-8 md:p-12 shadow-lg bg-stone-900 text-stone-100" style={{ minHeight: '960px' }}>
                 <div className="flex justify-between items-center mb-8 text-xs tracking-widest uppercase text-stone-400">
                   <span>The Story of {result.chinese}</span>
                   <span>No. {cardNumber}</span>
@@ -1043,7 +1043,7 @@ const Result = ({ name, result, zodiac, revealed, onRestart }) => {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center fade-up mt-8">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center fade-up mt-8 relative z-10">
           <button onClick={handleDownload} className="bg-stone-900 text-stone-100 px-8 py-4 rounded-full text-sm tracking-widest uppercase hover:bg-stone-800 transition-colors">
             ↓ Download Card
           </button>
